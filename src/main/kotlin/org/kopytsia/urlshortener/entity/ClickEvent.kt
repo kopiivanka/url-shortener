@@ -29,7 +29,4 @@ class ClickEvent {
 
     @Column(name = "country", length = 2)
     var country: String? = null
-
-    @Column(name = "device", length = 16)
-    var device: String = "UNKNOWN"
 }
