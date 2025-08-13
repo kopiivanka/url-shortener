@@ -1,4 +1,4 @@
-package org.example.urlshortener
+package org.kopytsia.urlshortener
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
