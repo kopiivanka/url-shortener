@@ -5,10 +5,7 @@ import java.time.OffsetDateTime
 import java.util.*
 
 @Entity
-@Table(
-    name = "users",
-    indexes = [Index(columnList = "email", unique = true)]
-)
+@Table (name = "users")
 class User(
 
     @Id
