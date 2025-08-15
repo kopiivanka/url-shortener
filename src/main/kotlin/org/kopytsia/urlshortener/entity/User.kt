@@ -5,12 +5,13 @@ import java.time.OffsetDateTime
 import java.util.*
 
 @Entity
-@Table (name = "users")
+@Table(name = "users")
 class User(
 
     @Id
-    @Column(nullable = false)
-    val id: UUID = UUID.randomUUID(),
+    @GeneratedValue
+    @Column(nullable = false, updatable = false)
+    val id: UUID? = null,
 
     @Column(nullable = false, unique = true, length = 320)
     val email: String,
