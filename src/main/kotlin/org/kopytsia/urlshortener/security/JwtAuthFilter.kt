@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.kopytsia.urlshortener.service.JwtTokenService
+import org.kopytsia.urlshortener.service.TokenBlacklistService
 import org.springframework.http.HttpHeaders.AUTHORIZATION
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
@@ -18,16 +19,27 @@ private const val TOKEN_PREFIX = "Bearer "
 class JwtAuthenticationFilter(
     private val jwtTokenService: JwtTokenService,
     private val userDetailsService: UserDetailsService,
+    private val tokenBlacklistService: TokenBlacklistService,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
+        // Skip auth endpoints entirely
+        val path = request.servletPath
+        if (path.startsWith("/api/auth/")) {
+            filterChain.doFilter(request, response)
+            return
+        }
         request
             .getHeader(AUTHORIZATION)
             ?.removePrefix(TOKEN_PREFIX)
-            ?.let {token -> doAuthorization(request, token)}
+            ?.let { token ->
+                if (jwtTokenService.isTokenValid(token) && !tokenBlacklistService.isBlacklisted(token)) {
+                    doAuthorization(request, token)
+                }
+            }
 
         filterChain.doFilter(request, response)
     }

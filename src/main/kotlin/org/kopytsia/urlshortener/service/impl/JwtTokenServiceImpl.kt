@@ -11,11 +11,15 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.server.ResponseStatusException
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.*
 import javax.crypto.SecretKey
 
 @Service
 class JwtTokenServiceImpl(
     @Value("\${jwt.secret}") private val secret: String,
+    @Value("\${jwt.expiration-minutes:15}") private val expirationMinutes: Long,
 ) : JwtTokenService {
 
     private lateinit var secretKey: SecretKey
@@ -27,8 +31,12 @@ class JwtTokenServiceImpl(
     }
 
     override fun generateToken(email: String): String {
+        val now = Instant.now()
+        val exp = now.plus(expirationMinutes, ChronoUnit.MINUTES)
         return Jwts.builder()
             .setSubject(email)
+            .setIssuedAt(Date.from(now))
+            .setExpiration(Date.from(exp))
             .signWith(secretKey)
             .compact()
     }
@@ -56,6 +64,19 @@ class JwtTokenServiceImpl(
             true
         } catch (_: JwtException) {
             false
+        }
+    }
+
+    override fun getExpiration(token: String): Instant {
+        return try {
+            val jwt = Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+            jwt.body.expiration.toInstant()
+        } catch (e: Exception) {
+            logger.warn("JWT expiration parse failed: ${e.message}")
+            throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
         }
     }
 }
