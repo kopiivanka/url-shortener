@@ -36,6 +36,7 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/r/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -43,7 +44,6 @@ class SecurityConfig {
         return http.build()
     }
 
-    // Dev-friendly CORS allowing all; tighten in prod
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration()
