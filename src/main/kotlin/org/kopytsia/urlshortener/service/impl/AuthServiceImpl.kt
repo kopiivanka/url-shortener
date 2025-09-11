@@ -38,7 +38,7 @@ class AuthServiceImpl(
         return AuthResponse(token)
     }
 
-    @Transactional(Transactional.TxType.SUPPORTS)
+    @Transactional
     override fun login(request: AuthRequest): AuthResponse {
         val email = normalizeEmail(request.email)
 
