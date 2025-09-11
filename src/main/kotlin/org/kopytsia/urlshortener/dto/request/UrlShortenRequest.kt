@@ -7,4 +7,3 @@ data class UrlShortenRequest(
     val expiresAt: OffsetDateTime? = null,
     val customCode: String? = null
 )
-
