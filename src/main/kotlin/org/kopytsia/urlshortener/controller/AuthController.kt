@@ -18,7 +18,10 @@ class AuthController(
     private val authService: AuthService,
     private val jwtTokenService: JwtTokenService,
     private val tokenBlacklistService: TokenBlacklistService,
+
 ) {
+    private val log = org.slf4j.LoggerFactory.getLogger(AuthController::class.java)
+
     @PostMapping("/register")
     fun register(@RequestBody request: RegisterRequest): ResponseEntity<AuthResponse> {
         val response = authService.register(request)
@@ -27,6 +30,7 @@ class AuthController(
 
     @PostMapping("/login")
     fun login(@RequestBody request: AuthRequest): ResponseEntity<AuthResponse> {
+        log.debug("CTRL: /api/auth/login email={}", request.email)
         val response = authService.login(request)
         return ResponseEntity.ok(response)
     }

@@ -9,7 +9,9 @@ import org.kopytsia.urlshortener.entity.User
 import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.TokenBlacklistService
 import org.kopytsia.urlshortener.service.UrlService
-import org.mockito.Mockito.`when`
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -27,12 +29,13 @@ import java.util.*
 
 @WebMvcTest(controllers = [UrlController::class])
 @AutoConfigureMockMvc(addFilters = false)
+@Import(Config::class)
 class UrlControllerTest {
 
     @Autowired lateinit var mockMvc: MockMvc
     @Autowired lateinit var objectMapper: ObjectMapper
 
-    @MockBean lateinit var urlService: UrlService
+    @Autowired lateinit var stubUrlService: StubUrlService
     @MockBean lateinit var jwtTokenService: JwtTokenService
     @MockBean lateinit var tokenBlacklistService: TokenBlacklistService
     @MockBean lateinit var userDetailsService: UserDetailsService
@@ -49,7 +52,7 @@ class UrlControllerTest {
         )
 
         val req = UrlShortenRequest(originalUrl = "https://example.com/x", expiresAt = saved.expiresAt, customCode = null)
-        `when`(urlService.shortenForUser("me@example.com", req.originalUrl, req.expiresAt, req.customCode)).thenReturn(saved)
+        stubUrlService.nextShortenForUser = saved
 
         mockMvc.perform(
             post("/api/url/shorten")
@@ -66,7 +69,7 @@ class UrlControllerTest {
     @Test
     fun redirect_found_sets_location_header() {
         val url = Url(shortCode = "go1", originalUrl = "https://golang.org")
-        `when`(urlService.resolve("go1")).thenReturn(Optional.of(url))
+        stubUrlService.resolveMap["go1"] = url
 
         mockMvc.perform(get("/r/{code}", "go1"))
             .andExpect(status().isFound)
@@ -75,10 +78,36 @@ class UrlControllerTest {
 
     @Test
     fun redirect_missing_returns_404() {
-        `when`(urlService.resolve("nope")).thenReturn(Optional.empty())
+        stubUrlService.resolveMap.remove("nope")
 
         mockMvc.perform(get("/r/{code}", "nope"))
             .andExpect(status().isNotFound)
     }
 }
 
+class StubUrlService : UrlService {
+    var nextShortenForUser: Url? = null
+    val resolveMap: MutableMap<String, Url> = mutableMapOf()
+
+    override fun shorten(
+        originalUrl: String,
+        ownerId: UUID?,
+        expiresAt: OffsetDateTime?,
+        customCode: String?
+    ): Url = throw UnsupportedOperationException("Not used in controller tests")
+
+    override fun resolve(shortCode: String): Optional<Url> = Optional.ofNullable(resolveMap[shortCode])
+
+    override fun shortenForUser(
+        ownerEmail: String,
+        originalUrl: String,
+        expiresAt: OffsetDateTime?,
+        customCode: String?
+    ): Url = nextShortenForUser ?: throw IllegalStateException("nextShortenForUser not set")
+}
+
+@TestConfiguration
+class Config {
+    @Bean
+    fun urlService(): UrlService = StubUrlService()
+}

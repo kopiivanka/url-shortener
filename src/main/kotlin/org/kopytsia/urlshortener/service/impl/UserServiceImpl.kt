@@ -22,7 +22,7 @@ class UserServiceImpl(
             .orElseThrow { EntityNotFoundException("User with id=$id not found") }
     }
 
-    @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
+    @CacheEvict(cacheNames = ["userById"], allEntries = true)
     override fun createUser(email: String, passwordHash: String, role: Role): User {
         val newUser = User(
             id = UUID.randomUUID(),
@@ -34,7 +34,7 @@ class UserServiceImpl(
         return userRepository.save(newUser)
     }
 
-    @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
+    @CacheEvict(cacheNames = ["userById"], allEntries = true)
     override fun updateUser(id: UUID, email: String, passwordHash: String, role: Role): User {
         val existingUser = userRepository.findById(id)
             .orElseThrow { EntityNotFoundException("User with id=$id not found") }
@@ -49,7 +49,7 @@ class UserServiceImpl(
         return userRepository.save(updatedUser)
     }
 
-    @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
+    @CacheEvict(cacheNames = ["userById"], allEntries = true)
     override fun deleteUser(id: UUID) {
         if (!userRepository.existsById(id)) {
             throw EntityNotFoundException("User with id=$id not found")
