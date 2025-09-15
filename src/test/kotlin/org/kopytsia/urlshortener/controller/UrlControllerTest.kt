@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.kopytsia.urlshortener.dto.request.UrlShortenRequest
 import org.kopytsia.urlshortener.entity.Role
-import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.entity.User
 import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.TokenBlacklistService
@@ -12,52 +11,53 @@ import org.kopytsia.urlshortener.service.UrlShortenService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Import
 import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.http.MediaType
+import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.security.Principal
-import java.time.OffsetDateTime
 import java.util.*
+import org.mockito.Mockito.`when`
 
 @WebMvcTest(controllers = [UrlController::class])
 @AutoConfigureMockMvc(addFilters = false)
-@Import(UrlControllerTest.Config::class)
-class UrlControllerTest {
+class UrlControllerTest(
+    @Autowired val mockMvc: MockMvc,
+    @Autowired val objectMapper: ObjectMapper,
+) {
 
-    @Autowired lateinit var mockMvc: MockMvc
-    @Autowired lateinit var objectMapper: ObjectMapper
-    @Autowired lateinit var stubShortCodeService: StubShortCodeService
-
+    @MockBean lateinit var urlShortenService: UrlShortenService
     @MockBean lateinit var jwtTokenService: JwtTokenService
     @MockBean lateinit var tokenBlacklistService: TokenBlacklistService
     @MockBean lateinit var userDetailsService: UserDetailsService
+    @MockBean lateinit var userRepository: org.kopytsia.urlshortener.repository.UserRepository
 
     private fun principalOf(email: String) = Principal { email }
 
     @Test
-    fun shorten_returns_created_with_body() {
-        val now = OffsetDateTime.now()
-        val owner = User(id = UUID.randomUUID(), email = "me@example.com", passwordHash = "h", role = Role.USER)
-        val saved = Url(
+    fun `shorten returns 201 and code`() {
+        val user = User(
             id = UUID.randomUUID(),
-            shortCode = "abcDEF12",
-            originalUrl = "https://example.com/x",
-            owner = owner,
-            createdAt = now,
-            expiresAt = now.plusDays(1)
+            email = "me@example.com",
+            passwordHash = "h",
+            role = Role.USER
         )
-        stubShortCodeService.nextShorten = saved
+        `when`(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(user))
+        `when`(
+            urlShortenService.shorten(
+                url = "https://example.com/x",
+                user = user,
+                expiresAt = null,
+                code = null
+            )
+        ).thenReturn("abcDEF12")
 
         val req = UrlShortenRequest(
             originalUrl = "https://example.com/x",
-            expiresAt = saved.expiresAt,
+            expiresAt = null,
             customCode = null
         )
 
@@ -68,24 +68,6 @@ class UrlControllerTest {
                 .content(objectMapper.writeValueAsString(req))
         )
             .andExpect(status().isCreated)
-            .andExpect(jsonPath("$.shortCode").value("abcDEF12"))
-            .andExpect(jsonPath("$.originalUrl").value("https://example.com/x"))
-            .andExpect(jsonPath("$.ownerId").value(owner.id.toString()))
-    }
-
-    @TestConfiguration
-    class Config {
-        @Bean
-        fun urlShortCodeService(): StubShortCodeService = StubShortCodeService()
-    }
-
-    class StubShortCodeService : UrlShortenService {
-        var nextShorten: Url? = null
-        override fun shorten(
-            originalUrl: String,
-            ownerEmail: String?,
-            expiresAt: OffsetDateTime?,
-            customCode: String?
-        ): Url = nextShorten ?: error("nextShorten not set")
+            .andExpect(jsonPath("$.code").value("abcDEF12"))
     }
 }

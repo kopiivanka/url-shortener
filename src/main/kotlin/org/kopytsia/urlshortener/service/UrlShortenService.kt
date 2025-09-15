@@ -1,13 +1,13 @@
 package org.kopytsia.urlshortener.service
 
-import org.kopytsia.urlshortener.entity.Url
+import org.kopytsia.urlshortener.entity.User
 import java.time.OffsetDateTime
 
 interface UrlShortenService {
     fun shorten(
-        originalUrl: String,
-        ownerEmail: String? = null,
+        url: String,
+        user: User,
         expiresAt: OffsetDateTime? = null,
-        customCode: String? = null
-    ): Url
+        code: String ? = null
+    ): String
 }
