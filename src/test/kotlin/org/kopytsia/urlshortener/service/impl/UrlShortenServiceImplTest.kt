@@ -1,6 +1,7 @@
 package org.kopytsia.urlshortener.service.impl
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.Url
@@ -10,64 +11,58 @@ import org.kopytsia.urlshortener.service.RandomCodeService
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
-import java.time.OffsetDateTime
-import java.util.*
+import java.util.UUID
 
 class UrlShortenServiceImplTest {
 
-    private val urlRepository: UrlRepository = mock(UrlRepository::class.java)
-    private val randomCodeService: RandomCodeService = mock(RandomCodeService::class.java)
-    private val service = UrlShortenServiceImpl(urlRepository, randomCodeService)
+    private val repo: UrlRepository = mock(UrlRepository::class.java)
+    private val rnd: RandomCodeService = mock(RandomCodeService::class.java)
+    private val service = UrlShortenServiceImpl(repo, rnd)
 
-    private val user = User(
-        id = UUID.randomUUID(),
-        email = "me@example.com",
-        passwordHash = "xxx",
-        role = Role.USER
-    )
+    private val user = User(UUID.randomUUID(), "me@example.com", "h", Role.USER)
 
-    @Test
-    fun `custom code`() {
-        `when`(urlRepository.existsByShortCode("good123")).thenReturn(false)
+    @Test fun `custom code ok saves and returns redirect`() {
+        `when`(repo.existsByShortCode("Good_123")).thenReturn(false)
+        `when`(repo.save(any(Url::class.java))).thenAnswer { it.arguments[0] }
 
-        val url = "https://example.com"
-        val expiresAt = OffsetDateTime.now().plusDays(1)
-
-        val result = service.shorten(url, user, expiresAt, "good123")
-
-        assertEquals("/r/good123", result)
-        verify(urlRepository).save(any(Url::class.java))
+        val r = service.shorten("https://ex.com", user, null, "Good_123")
+        assertEquals("/r/Good_123", r)
+        verify(repo).save(any(Url::class.java))
     }
 
-    @Test
-    fun `code not provided`() {
-        `when`(randomCodeService.generate()).thenReturn("gen123")
-        `when`(urlRepository.existsByShortCode("gen123")).thenReturn(false)
+    @Test fun `generates when code null`() {
+        `when`(rnd.generate()).thenReturn("genCode")
+        `when`(repo.existsByShortCode("genCode")).thenReturn(false)
+        `when`(repo.save(any(Url::class.java))).thenAnswer { it.arguments[0] }
 
-        val url = "https://example.com"
-        val result = service.shorten(url, user, null, null)
-
-        assertEquals("/r/gen123", result)
-        verify(urlRepository).save(any(Url::class.java))
+        val r = service.shorten("https://ex.com", user, null, null)
+        assertEquals("/r/genCode", r)
+        verify(repo).save(any(Url::class.java))
     }
 
-    @Test
-    fun `invalid url`() {
+    @Test fun `bad url 400`() {
         val ex = assertThrows(ResponseStatusException::class.java) {
-            service.shorten("ftp://example.com", user, null, "abc123")
+            service.shorten("ftp://bad", user, null, "abc")
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
-        verifyNoInteractions(urlRepository)
+        verifyNoInteractions(repo, rnd)
     }
 
-    @Test
-    fun `code taken`() {
-        `when`(urlRepository.existsByShortCode("dup")).thenReturn(true)
+    @Test fun `bad code format 400`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            service.shorten("https://ex.com", user, null, "bad space")
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+        verify(repo, never()).save(any())
+    }
+
+    @Test fun `code taken 409`() {
+        `when`(repo.existsByShortCode("dup")).thenReturn(true)
 
         val ex = assertThrows(ResponseStatusException::class.java) {
-            service.shorten("https://example.com", user, null, "dup")
+            service.shorten("https://ex.com", user, null, "dup")
         }
         assertEquals(HttpStatus.CONFLICT, ex.statusCode)
-        verify(urlRepository, never()).save(any())
+        verify(repo, never()).save(any())
     }
 }
