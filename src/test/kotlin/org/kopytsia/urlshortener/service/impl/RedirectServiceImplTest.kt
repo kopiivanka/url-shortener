@@ -1,51 +1,77 @@
 package org.kopytsia.urlshortener.service.impl
 
-import org.junit.jupiter.api.Assertions.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.kopytsia.urlshortener.constants.TestConstants.Codes
+import org.kopytsia.urlshortener.constants.TestConstants.Urls
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
 import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.repository.UrlRepository
-import org.mockito.Mockito.*
+import org.mockito.Mockito.mock
+import org.mockito.kotlin.*
+import org.mockito.Mockito.verify
 import java.time.OffsetDateTime
 import java.util.*
 
 class RedirectServiceImplTest {
-
-    private val urlRepository: UrlRepository = mock(UrlRepository::class.java)
+    private val urlRepository: UrlRepository = mock()
     private val service = RedirectServiceImpl(urlRepository)
 
     @Test
-    fun `resolve returns present when not expired`() {
-        val fresh = Url(shortCode = "abc", originalUrl = "https://example.com", expiresAt = OffsetDateTime.now().plusDays(1))
-        `when`(urlRepository.findByShortCode("abc")).thenReturn(Optional.of(fresh))
+    fun `redirect returns url not expired`() {
+        val fresh = Url(
+            shortCode = Codes.VALID_CUSTOM,
+            originalUrl = Urls.VALID,
+            owner = USER,
+            expiresAt = OffsetDateTime.now().plusDays(1)
+        )
+        whenever(urlRepository.findByShortCode(Codes.VALID_CUSTOM))
+            .thenReturn(Optional.of(fresh))
 
-        val result = service.redirect("abc")
-
-        assertTrue(result.isPresent)
-        assertEquals(fresh, result.get())
-        verify(urlRepository, times(1)).findByShortCode("abc")
-        verifyNoMoreInteractions(urlRepository)
+        val result = service.redirect(Codes.VALID_CUSTOM)
+        assertThat(result).contains(fresh)
+        verify(urlRepository).findByShortCode(Codes.VALID_CUSTOM)
     }
 
     @Test
-    fun `resolve filters out expired url`() {
-        val expired = Url(shortCode = "old", originalUrl = "https://old.example", expiresAt = OffsetDateTime.now().minusDays(1))
-        `when`(urlRepository.findByShortCode("old")).thenReturn(Optional.of(expired))
+    fun `redirect returns url expired`() {
+        val expired = Url(
+            shortCode = Codes.DUPLICATE,
+            originalUrl = Urls.VALID,
+            owner = USER,
+            expiresAt = OffsetDateTime.now().minusDays(1)
+        )
+        whenever(urlRepository.findByShortCode(Codes.DUPLICATE))
+            .thenReturn(Optional.of(expired))
 
-        val result = service.redirect("old")
-
-        assertTrue(result.isEmpty)
-        verify(urlRepository, times(1)).findByShortCode("old")
-        verifyNoMoreInteractions(urlRepository)
+        val result = service.redirect(Codes.DUPLICATE)
+        assertThat(result).isEmpty
+        verify(urlRepository).findByShortCode(Codes.DUPLICATE)
     }
 
     @Test
-    fun `resolve returns empty when not found`() {
-        `when`(urlRepository.findByShortCode("nope")).thenReturn(Optional.empty())
+    fun `redirect returns empty`() {
+        whenever(urlRepository.findByShortCode(Codes.GENERATED))
+            .thenReturn(Optional.empty())
 
-        val result = service.redirect("nope")
+        val result = service.redirect(Codes.GENERATED)
+        assertThat(result).isEmpty
+        verify(urlRepository).findByShortCode(Codes.GENERATED)
+    }
 
-        assertTrue(result.isEmpty)
-        verify(urlRepository, times(1)).findByShortCode("nope")
-        verifyNoMoreInteractions(urlRepository)
+    @Test
+    fun `redirect expiresAt is null`() {
+        val forever = Url(
+            shortCode = Codes.INVALID_FORMAT,
+            originalUrl = Urls.VALID,
+            owner = USER,
+            expiresAt = null
+        )
+        whenever(urlRepository.findByShortCode(Codes.INVALID_FORMAT))
+            .thenReturn(Optional.of(forever))
+
+        val result = service.redirect(Codes.INVALID_FORMAT)
+        assertThat(result).contains(forever)
+        verify(urlRepository).findByShortCode(Codes.INVALID_FORMAT)
     }
 }
