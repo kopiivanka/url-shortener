@@ -28,41 +28,43 @@ class UrlShortenServiceImplTest {
     @InjectMockKs
     lateinit var urlShortenService: UrlShortenServiceImpl
 
-    private fun verifySavedUrl(expectedCode: String) {
-        verify {
-            urlRepository.save(withArg { u ->
-                assertThat(u.shortCode).isEqualTo(expectedCode)
-                assertThat(u.originalUrl).isEqualTo(Urls.VALID)
-                assertThat(u.owner).isEqualTo(USER)
-                assertThat(u.expiresAt).isNull()
-            })
-        }
-    }
-
     @Test
-    fun test_shorten_returnsRedirect201_whenCustomCodeProvided() {
+    fun `test shorten code provided`() {
         every { urlRepository.existsByShortCode(Codes.VALID_CUSTOM) } returns false
-        every { urlRepository.save(ofType<Url>()) } returnsArgument 0
+        every { urlRepository.save(any<Url>()) } answers {
+            val u = firstArg<Url>()
+            assertThat(u.originalUrl).isEqualTo(Urls.VALID)
+            assertThat(u.shortCode).isEqualTo(Codes.VALID_CUSTOM)
+            assertThat(u.owner).isEqualTo(USER)
+            assertThat(u.expiresAt).isNull()
+            u
+        }
 
         val result = urlShortenService.shorten(Urls.VALID, USER, null, Codes.VALID_CUSTOM)
         assertThat(result).isEqualTo("/r/${Codes.VALID_CUSTOM}")
         verify { urlRepository.existsByShortCode(Codes.VALID_CUSTOM) }
-        verifySavedUrl(Codes.VALID_CUSTOM)
     }
 
+
     @Test
-    fun test_shorten_generatesCodeAndSaves_whenNoCustomCodeProvided() {
+    fun `test shorten no code provided`() {
         every { randomCodeService.generate() } returns Codes.GENERATED
-        every { urlRepository.save(ofType<Url>()) } returnsArgument 0
+        every { urlRepository.save(any<Url>()) } answers {
+            val u = firstArg<Url>()
+            assertThat(u.originalUrl).isEqualTo(Urls.VALID)
+            assertThat(u.shortCode).isEqualTo(Codes.GENERATED)
+            assertThat(u.owner).isEqualTo(USER)
+            assertThat(u.expiresAt).isNull()
+            u
+        }
 
         val result = urlShortenService.shorten(Urls.VALID, USER, null, null)
         assertThat(result).isEqualTo("/r/${Codes.GENERATED}")
         verify { randomCodeService.generate() }
-        verifySavedUrl(Codes.GENERATED)
     }
 
     @Test
-    fun test_shorten_throws400_whenUrlIsInvalid() {
+    fun `test shorten invalid url provided`() {
         val ex = catchThrowableOfType(
             { urlShortenService.shorten(Urls.INVALID, USER, null, "abc") },
             ResponseStatusException::class.java
@@ -71,7 +73,7 @@ class UrlShortenServiceImplTest {
     }
 
     @Test
-    fun test_shorten_throws400_whenCustomCodeFormatIsInvalid() {
+    fun `test shorten code invalid`() {
         val ex = catchThrowableOfType(
             { urlShortenService.shorten(Urls.VALID, USER, null, Codes.INVALID_FORMAT) },
             ResponseStatusException::class.java
@@ -80,7 +82,7 @@ class UrlShortenServiceImplTest {
     }
 
     @Test
-    fun test_shorten_throws409_whenCustomCodeIsTaken() {
+    fun `test shorten code taken`() {
         every { urlRepository.existsByShortCode(Codes.DUPLICATE) } returns true
 
         val ex = catchThrowableOfType(
