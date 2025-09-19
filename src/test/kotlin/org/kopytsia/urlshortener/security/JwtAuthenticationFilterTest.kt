@@ -1,88 +1,97 @@
 package org.kopytsia.urlshortener.security
 
+import io.mockk.Called
+import io.mockk.every
+import io.mockk.impl.annotations.MockK
+import io.mockk.junit5.MockKExtension
+import io.mockk.verify
 import jakarta.servlet.FilterChain
 import jakarta.servlet.ServletRequest
 import jakarta.servlet.ServletResponse
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER_EMAIL
 import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.TokenBlacklistService
-import org.mockito.Mockito
-import org.mockito.Mockito.`when`
-import org.mockito.Mockito.mock
-import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpHeaders.AUTHORIZATION
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
-import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.mock.web.MockHttpServletRequest
-import org.springframework.mock.web.MockHttpServletResponse
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
+@ExtendWith(MockKExtension::class)
 class JwtAuthenticationFilterTest {
 
-    private lateinit var jwtService: JwtTokenService
-    private lateinit var userDetailsService: UserDetailsService
-    private lateinit var blacklistService: TokenBlacklistService
+    @MockK
+    lateinit var jwt: JwtTokenService
+    @MockK
+    lateinit var uds: UserDetailsService
+    @MockK
+    lateinit var blacklist: TokenBlacklistService
+
     private lateinit var filter: JwtAuthenticationFilter
 
     @BeforeEach
     fun setUp() {
-        jwtService = mock(JwtTokenService::class.java)
-        userDetailsService = mock(UserDetailsService::class.java)
-        blacklistService = mock(TokenBlacklistService::class.java)
-        filter = JwtAuthenticationFilter(jwtService, userDetailsService, blacklistService)
+        filter = JwtAuthenticationFilter(jwt, uds, blacklist)
         SecurityContextHolder.clearContext()
     }
 
     @AfterEach
-    fun tearDown() {
-        SecurityContextHolder.clearContext()
-    }
+    fun tearDown() = SecurityContextHolder.clearContext()
 
     @Test
-    fun `sets authentication when bearer token present`() {
-        val request = MockHttpServletRequest()
-        val response = MockHttpServletResponse()
-        val chain = RecordingFilterChain()
+    fun `test bearer_sets_auth`() {
+        val token = "abc.def.ghi"
+        val email = USER_EMAIL
+        val req = MockHttpServletRequest().apply { addHeader(AUTHORIZATION, "Bearer $token") }
+        val resp = MockHttpServletResponse()
+        val chain = FlagChain()
 
-        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer abc.def.ghi")
-        `when`(jwtService.isTokenValid("abc.def.ghi")).thenReturn(true)
-        `when`(blacklistService.isBlacklisted("abc.def.ghi")).thenReturn(false)
-        `when`(jwtService.extractUsername("abc.def.ghi")).thenReturn("user@example.com")
-        val user: UserDetails = User.builder()
-            .username("user@example.com")
-            .password("N/A")
-            .roles("USER")
-            .build()
-        `when`(userDetailsService.loadUserByUsername("user@example.com")).thenReturn(user)
+        every { jwt.isTokenValid(token) } returns true
+        every { blacklist.isBlacklisted(token) } returns false
+        every { jwt.extractUsername(token) } returns email
+        every { uds.loadUserByUsername(email) } returns User.withUsername(email).password("N/A").roles("USER").build()
 
-        filter.doFilter(request, response, chain)
+        filter.doFilter(req, resp, chain)
 
         val auth = SecurityContextHolder.getContext().authentication
         assertNotNull(auth)
-        assertEquals("user@example.com", auth.name)
-        assertTrue(chain.invoked)
+        assertEquals(email, auth.name)
+        assertTrue(chain.called)
+
+        verify {
+            jwt.isTokenValid(token)
+            blacklist.isBlacklisted(token)
+            jwt.extractUsername(token)
+            uds.loadUserByUsername(email)
+        }
     }
 
     @Test
-    fun `does not set authentication when header missing`() {
-        val request = MockHttpServletRequest()
-        val response = MockHttpServletResponse()
-        val chain = RecordingFilterChain()
+    fun `test no_header_no_auth`() {
+        val req = MockHttpServletRequest()
+        val resp = MockHttpServletResponse()
+        val chain = FlagChain()
 
-        filter.doFilter(request, response, chain)
+        filter.doFilter(req, resp, chain)
 
         assertNull(SecurityContextHolder.getContext().authentication)
-        assertTrue(chain.invoked)
-        Mockito.verifyNoInteractions(jwtService, userDetailsService, blacklistService)
+        assertTrue(chain.called)
+        verify { jwt wasNot Called; uds wasNot Called; blacklist wasNot Called }
     }
 
-    private class RecordingFilterChain : FilterChain {
-        var invoked: Boolean = false
+    private class FlagChain : FilterChain {
+        var called = false
         override fun doFilter(request: ServletRequest?, response: ServletResponse?) {
-            invoked = true
+            called = true
         }
     }
 }

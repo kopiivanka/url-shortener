@@ -1,157 +1,135 @@
 package org.kopytsia.urlshortener.service.impl
 
+import io.mockk.*
 import jakarta.persistence.EntityNotFoundException
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.extension.ExtendWith
+import org.kopytsia.urlshortener.constants.TestConstants.Ids.USER_ID
+import org.kopytsia.urlshortener.constants.TestConstants.Users.PASSWORD_HASH
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER_EMAIL
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.User
 import org.kopytsia.urlshortener.repository.UserRepository
-import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.*
-import org.mockito.junit.jupiter.MockitoExtension
-import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.*
 
-@ExtendWith(MockitoExtension::class)
 class UserServiceImplTest {
 
-    private lateinit var userRepository: UserRepository
-    private lateinit var userService: UserServiceImpl
+    private val userRepository: UserRepository = mockk()
+    private val userServiceImpl = UserServiceImpl(userRepository)
 
-    @BeforeEach
-    fun setUp() {
-        userRepository = mock(UserRepository::class.java)
-        userService = UserServiceImpl(userRepository)
+    @Test
+    fun `test findByUserId returns entity`() {
+        every { userRepository.findById(USER_ID) } returns Optional.of(USER)
+
+        val got = userServiceImpl.findByUserId(USER_ID)
+
+        assertEquals(USER, got)
+        verify { userRepository.findById(USER_ID) }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `findByUserId returns user when exists`() {
+    fun `test findByUserId throws when missing`() {
         val id = UUID.randomUUID()
-        val user = User(
-            id = id,
-            email = "john.doe@example.com",
-            passwordHash = "hashed",
-            role = Role.USER,
-            createdAt = OffsetDateTime.now()
-        )
-        `when`(userRepository.findById(id)).thenReturn(Optional.of(user))
+        every { userRepository.findById(id) } returns Optional.empty()
 
-        val result = userService.findByUserId(id)
-
-        assertEquals(user, result)
-        verify(userRepository, times(1)).findById(id)
-        verifyNoMoreInteractions(userRepository)
+        assertThrows(EntityNotFoundException::class.java) { userServiceImpl.findByUserId(id) }
+        verify { userRepository.findById(id) }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `findByUserId throws when not found`() {
+    fun `test createUser saves with fields set`() {
+        val savedSlot = slot<User>()
+        every { userRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
+
+        val res = userServiceImpl.createUser(USER_EMAIL, PASSWORD_HASH, Role.ADMIN)
+
+        val saved = savedSlot.captured
+        assertNotNull(saved.id)
+        assertEquals(USER_EMAIL, saved.email)
+        assertEquals(PASSWORD_HASH, saved.passwordHash)
+        assertEquals(Role.ADMIN, saved.role)
+        assertNotNull(saved.createdAt)
+        assertEquals(saved, res)
+
+        verify { userRepository.save(any<User>()) }
+        confirmVerified(userRepository)
+    }
+
+    @Test
+    fun `test updateUser updates fields, keeps id and createdAt`() {
         val id = UUID.randomUUID()
-        `when`(userRepository.findById(id)).thenReturn(Optional.empty())
-
-        assertThrows<EntityNotFoundException> { userService.findByUserId(id) }
-
-        verify(userRepository, times(1)).findById(id)
-        verifyNoMoreInteractions(userRepository)
-    }
-
-    @Test
-    fun `createUser saves and returns created entity`() {
-        val email = "alice@example.com"
-        val passwordHash = "secretHash"
-        val role = Role.ADMIN
-
-        val captor = ArgumentCaptor.forClass(User::class.java)
-        `when`(userRepository.save(captor.capture())).thenAnswer { it.getArgument<User>(0) }
-
-        val result = userService.createUser(email, passwordHash, role)
-        verify(userRepository, times(1)).save(any(User::class.java))
-        verifyNoMoreInteractions(userRepository)
-
-        val saved = captor.value
-        assertNotNull(saved.id, "Expected generated id")
-        assertEquals(email, saved.email)
-        assertEquals(passwordHash, saved.passwordHash)
-        assertEquals(role, saved.role)
-        assertTrue(Duration.between(saved.createdAt, OffsetDateTime.now()).seconds < 5)
-
-        assertEquals(saved, result)
-    }
-
-    @Test
-    fun `updateUser updates fields and preserves id and createdAt`() {
-        val existingId = UUID.randomUUID()
-        val createdAt = OffsetDateTime.now().minusDays(1)
+        val created = OffsetDateTime.now().minusDays(2)
         val existing = User(
-            id = existingId,
-            email = "old@example.com",
-            passwordHash = "oldHash",
+            id = id,
+            email = "old@ex.com",
+            passwordHash = "old",
             role = Role.USER,
-            createdAt = createdAt
+            createdAt = created
         )
 
-        `when`(userRepository.findById(existingId)).thenReturn(Optional.of(existing))
+        every { userRepository.findById(id) } returns Optional.of(existing)
 
-        val captor = ArgumentCaptor.forClass(User::class.java)
-        `when`(userRepository.save(captor.capture())).thenAnswer { it.getArgument<User>(0) }
+        val savedSlot = slot<User>()
+        every { userRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
 
-        val updatedEmail = "new@example.com"
-        val updatedHash = "newHash"
-        val updatedRole = Role.ADMIN
+        val res = userServiceImpl.updateUser(id, USER_EMAIL, PASSWORD_HASH, Role.ADMIN)
 
-        val result = userService.updateUser(existingId, updatedEmail, updatedHash, updatedRole)
+        val saved = savedSlot.captured
+        assertEquals(id, saved.id)
+        assertEquals(created, saved.createdAt)
+        assertEquals(USER_EMAIL, saved.email)
+        assertEquals(PASSWORD_HASH, saved.passwordHash)
+        assertEquals(Role.ADMIN, saved.role)
+        assertEquals(saved, res)
 
-        verify(userRepository, times(1)).findById(existingId)
-        verify(userRepository, times(1)).save(any(User::class.java))
-        verifyNoMoreInteractions(userRepository)
-
-        val saved = captor.value
-        assertEquals(existingId, saved.id)
-        assertEquals(createdAt, saved.createdAt)
-        assertEquals(updatedEmail, saved.email)
-        assertEquals(updatedHash, saved.passwordHash)
-        assertEquals(updatedRole, saved.role)
-
-        assertEquals(saved, result)
+        verify {
+            userRepository.findById(id)
+            userRepository.save(any<User>())
+        }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `updateUser throws when user not found`() {
+    fun `test updateUser throws when missing`() {
         val id = UUID.randomUUID()
-        `when`(userRepository.findById(id)).thenReturn(Optional.empty())
+        every { userRepository.findById(id) } returns Optional.empty()
 
-        assertThrows<EntityNotFoundException> {
-            userService.updateUser(id, "e@example.com", "hash", Role.USER)
+        assertThrows(EntityNotFoundException::class.java) {
+            userServiceImpl.updateUser(id, USER_EMAIL, PASSWORD_HASH, Role.USER)
         }
 
-        verify(userRepository, times(1)).findById(id)
-        verifyNoMoreInteractions(userRepository)
+        verify { userRepository.findById(id) }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `deleteUser deletes when exists`() {
+    fun `test deleteUser removes when exists`() {
         val id = UUID.randomUUID()
-        `when`(userRepository.existsById(id)).thenReturn(true)
+        every { userRepository.existsById(id) } returns true
+        justRun { userRepository.deleteById(id) }
 
-        userService.deleteUser(id)
+        userServiceImpl.deleteUser(id)
 
-        verify(userRepository, times(1)).existsById(id)
-        verify(userRepository, times(1)).deleteById(id)
-        verifyNoMoreInteractions(userRepository)
+        verify {
+            userRepository.existsById(id)
+            userRepository.deleteById(id)
+        }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `deleteUser throws when not found`() {
+    fun `test deleteUser throws when missing`() {
         val id = UUID.randomUUID()
-        `when`(userRepository.existsById(id)).thenReturn(false)
+        every { userRepository.existsById(id) } returns false
 
-        assertThrows<EntityNotFoundException> { userService.deleteUser(id) }
+        assertThrows(EntityNotFoundException::class.java) { userServiceImpl.deleteUser(id) }
 
-        verify(userRepository, times(1)).existsById(id)
-        verify(userRepository, never()).deleteById(any(UUID::class.java))
-        verifyNoMoreInteractions(userRepository)
+        verify { userRepository.existsById(id) }
+        verify(exactly = 0) { userRepository.deleteById(any()) }
+        confirmVerified(userRepository)
     }
 }

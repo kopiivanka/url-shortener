@@ -1,111 +1,128 @@
 package org.kopytsia.urlshortener.service.impl
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import io.mockk.confirmVerified
+import io.mockk.every
+import io.mockk.impl.annotations.InjectMockKs
+import io.mockk.impl.annotations.MockK
+import io.mockk.junit5.MockKExtension
+import io.mockk.slot
+import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
+import org.kopytsia.urlshortener.constants.TestConstants.Users.PASSWORD_HASH
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
+import org.kopytsia.urlshortener.constants.TestConstants.Users.USER_EMAIL
 import org.kopytsia.urlshortener.dto.request.AuthRequest
 import org.kopytsia.urlshortener.dto.request.RegisterRequest
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.User
 import org.kopytsia.urlshortener.repository.UserRepository
 import org.kopytsia.urlshortener.service.JwtTokenService
-import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.server.ResponseStatusException
 import java.util.*
+import kotlin.test.assertEquals
 
+@ExtendWith(MockKExtension::class)
 class AuthServiceImplTest {
 
-    private val userRepository: UserRepository = mock(UserRepository::class.java)
-    private val passwordEncoder: PasswordEncoder = mock(PasswordEncoder::class.java)
-    private val jwtTokenService: JwtTokenService = mock(JwtTokenService::class.java)
+    @MockK
+    lateinit var userRepository: UserRepository
 
-    private val authService = AuthServiceImpl(userRepository, passwordEncoder, jwtTokenService)
+    @MockK
+    lateinit var passwordEncoder: PasswordEncoder
+
+    @MockK
+    lateinit var jwt: JwtTokenService
+
+    @InjectMockKs
+    lateinit var svc: AuthServiceImpl
 
     @Test
-    fun `register creates user, encodes password and returns token`() {
-        val req = RegisterRequest(email = "new@example.com", password = "plainPass")
-        `when`(userRepository.findByEmail(req.email)).thenReturn(Optional.empty())
-        `when`(passwordEncoder.encode(req.password)).thenReturn("encodedPass")
-        val captor = ArgumentCaptor.forClass(User::class.java)
-        `when`(userRepository.save(captor.capture())).thenAnswer { it.getArgument<User>(0) }
-        `when`(jwtTokenService.generateToken(req.email)).thenReturn("jwt-token")
+    fun `test register creates user and returns token`() {
+        val req = RegisterRequest(email = "new@example.com", password = "plain")
 
-        val response = authService.register(req)
+        every { userRepository.findByEmail(req.email) } returns Optional.empty()
+        every { passwordEncoder.encode(req.password) } returns "enc"
+        every { jwt.generateToken(req.email) } returns "jwt"
 
-        verify(userRepository, times(1)).findByEmail(req.email)
-        verify(passwordEncoder, times(1)).encode(req.password)
-        verify(userRepository, times(1)).save(any(User::class.java))
-        verify(jwtTokenService, times(1)).generateToken(req.email)
-        verifyNoMoreInteractions(userRepository, passwordEncoder, jwtTokenService)
+        val saved = slot<User>()
+        every { userRepository.save(capture(saved)) } answers { saved.captured }
 
-        val saved = captor.value
-        assertEquals(req.email, saved.email)
-        assertEquals("encodedPass", saved.passwordHash)
-        assertEquals(Role.USER, saved.role)
+        val res = svc.register(req)
 
-        assertEquals("jwt-token", response.token)
+        assertEquals(req.email, saved.captured.email)
+        assertEquals("enc", saved.captured.passwordHash)
+        assertEquals(Role.USER, saved.captured.role)
+        assertEquals("jwt", res.token)
+
+        verify {
+            userRepository.findByEmail(req.email)
+            passwordEncoder.encode(req.password)
+            userRepository.save(any())
+            jwt.generateToken(req.email)
+        }
+        confirmVerified(userRepository, passwordEncoder, jwt)
     }
 
     @Test
-    fun `register throws CONFLICT when email already in use`() {
-        val req = RegisterRequest(email = "taken@example.com", password = "pw")
-        `when`(userRepository.findByEmail(req.email)).thenReturn(Optional.of(mock(User::class.java)))
+    fun `test register throws 409 when email taken`() {
+        val req = RegisterRequest(email = USER_EMAIL, password = "pw")
+        every { userRepository.findByEmail(USER_EMAIL) } returns Optional.of(USER)
 
-        val ex = assertThrows<ResponseStatusException> { authService.register(req) }
+        val ex = assertThrows<ResponseStatusException> { svc.register(req) }
         assertEquals(HttpStatus.CONFLICT, ex.statusCode)
 
-        verify(userRepository, times(1)).findByEmail(req.email)
-        verifyNoMoreInteractions(userRepository)
-        verifyNoInteractions(passwordEncoder, jwtTokenService)
+        verify { userRepository.findByEmail(USER_EMAIL) }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `login returns token when credentials valid`() {
-        val req = AuthRequest(email = "user@example.com", password = "pw")
-        val stored = User(id = UUID.randomUUID(), email = req.email, passwordHash = "hashed")
-        `when`(userRepository.findByEmail(req.email)).thenReturn(Optional.of(stored))
-        `when`(passwordEncoder.matches(req.password, stored.passwordHash)).thenReturn(true)
-        `when`(jwtTokenService.generateToken(req.email)).thenReturn("jwt-token")
+    fun `test login returns token on valid creds`() {
+        val req = AuthRequest(email = USER_EMAIL, password = "pw")
 
-        val response = authService.login(req)
+        every { userRepository.findByEmail(USER_EMAIL) } returns Optional.of(USER)
+        every { passwordEncoder.matches(req.password, PASSWORD_HASH) } returns true
+        every { jwt.generateToken(USER_EMAIL) } returns "jwt"
 
-        verify(userRepository, times(1)).findByEmail(req.email)
-        verify(passwordEncoder, times(1)).matches(req.password, stored.passwordHash)
-        verify(jwtTokenService, times(1)).generateToken(req.email)
-        verifyNoMoreInteractions(userRepository, passwordEncoder, jwtTokenService)
+        val res = svc.login(req)
 
-        assertEquals("jwt-token", response.token)
+        assertEquals("jwt", res.token)
+        verify {
+            userRepository.findByEmail(USER_EMAIL)
+            passwordEncoder.matches(req.password, PASSWORD_HASH)
+            jwt.generateToken(USER_EMAIL)
+        }
+        confirmVerified(userRepository, passwordEncoder, jwt)
     }
 
     @Test
-    fun `login throws UNAUTHORIZED when user not found`() {
+    fun `test login throws 401 when user missing`() {
         val req = AuthRequest(email = "missing@example.com", password = "pw")
-        `when`(userRepository.findByEmail(req.email)).thenReturn(Optional.empty())
+        every { userRepository.findByEmail(req.email) } returns Optional.empty()
 
-        val ex = assertThrows<ResponseStatusException> { authService.login(req) }
+        val ex = assertThrows<ResponseStatusException> { svc.login(req) }
         assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
 
-        verify(userRepository, times(1)).findByEmail(req.email)
-        verifyNoMoreInteractions(userRepository)
-        verifyNoInteractions(passwordEncoder, jwtTokenService)
+        verify { userRepository.findByEmail(req.email) }
+        confirmVerified(userRepository)
     }
 
     @Test
-    fun `login throws UNAUTHORIZED when password invalid`() {
-        val req = AuthRequest(email = "user@example.com", password = "bad")
-        val stored = User(id = UUID.randomUUID(), email = req.email, passwordHash = "hashed")
-        `when`(userRepository.findByEmail(req.email)).thenReturn(Optional.of(stored))
-        `when`(passwordEncoder.matches(req.password, stored.passwordHash)).thenReturn(false)
+    fun `test login throws 401 when password invalid`() {
+        val req = AuthRequest(email = USER_EMAIL, password = "bad")
+        every { userRepository.findByEmail(USER_EMAIL) } returns Optional.of(USER)
+        every { passwordEncoder.matches(req.password, PASSWORD_HASH) } returns false
 
-        val ex = assertThrows<ResponseStatusException> { authService.login(req) }
+        val ex = assertThrows<ResponseStatusException> { svc.login(req) }
         assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
 
-        verify(userRepository, times(1)).findByEmail(req.email)
-        verify(passwordEncoder, times(1)).matches(req.password, stored.passwordHash)
-        verifyNoMoreInteractions(userRepository, passwordEncoder)
-        verifyNoInteractions(jwtTokenService)
+        verify {
+            userRepository.findByEmail(USER_EMAIL)
+            passwordEncoder.matches(req.password, PASSWORD_HASH)
+        }
+        confirmVerified(userRepository, passwordEncoder)
     }
 }
