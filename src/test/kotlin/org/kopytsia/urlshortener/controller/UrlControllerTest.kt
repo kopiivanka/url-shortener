@@ -23,24 +23,31 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.web.server.ResponseStatusException
 import java.security.Principal
-import java.util.Optional
-import java.util.UUID
+import java.util.*
 
 @WebMvcTest(controllers = [UrlController::class])
 @AutoConfigureMockMvc(addFilters = false)
-class UrlControllerTest(
-    @Autowired val mockMvc: MockMvc,
-    @Autowired val objectMapper: ObjectMapper,
-) {
-    @MockBean lateinit var urlShortenService: UrlShortenService
-    @MockBean lateinit var userRepository: UserRepository
-    @MockBean lateinit var jwtTokenService: JwtTokenService
-    @MockBean lateinit var tokenBlacklistService: TokenBlacklistService
-    @MockBean lateinit var userDetailsService: UserDetailsService
+class UrlControllerTest {
+
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    @Autowired
+    lateinit var objectMapper: ObjectMapper
+    @MockBean
+    lateinit var urlShortenService: UrlShortenService
+    @MockBean
+    lateinit var userRepository: UserRepository
+    @MockBean
+    lateinit var jwtTokenService: JwtTokenService
+    @MockBean
+    lateinit var tokenBlacklistService: TokenBlacklistService
+    @MockBean
+    lateinit var userDetailsService: UserDetailsService
 
     private fun p(email: String) = Principal { email }
 
-    @Test fun `201 and code`() {
+    @Test
+    fun `test 201 and code`() {
         val u = User(UUID.randomUUID(), "me@example.com", "h", Role.USER)
         `when`(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(u))
         `when`(urlShortenService.shorten("https://ex.com", u, null, null)).thenReturn("abc123")
@@ -55,7 +62,8 @@ class UrlControllerTest(
             .andExpect(jsonPath("$.code").value("abc123"))
     }
 
-    @Test fun `401 when user missing`() {
+    @Test
+    fun `test 401 when user missing`() {
         `when`(userRepository.findByEmail("nope@example.com")).thenReturn(Optional.empty())
 
         val req = UrlShortenRequest(originalUrl = "https://ex.com")
@@ -67,7 +75,8 @@ class UrlControllerTest(
         ).andExpect(status().isUnauthorized)
     }
 
-    @Test fun `400 from service is propagated`() {
+    @Test
+    fun `test 400 from service is propagated`() {
         val u = User(UUID.randomUUID(), "me@example.com", "h", Role.USER)
         `when`(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(u))
         `when`(urlShortenService.shorten("bad", u, null, null))
@@ -82,7 +91,8 @@ class UrlControllerTest(
         ).andExpect(status().isBadRequest)
     }
 
-    @Test fun `409 from service is propagated`() {
+    @Test
+    fun `test 409 from service is propagated`() {
         val u = User(UUID.randomUUID(), "me@example.com", "h", Role.USER)
         `when`(userRepository.findByEmail("me@example.com")).thenReturn(Optional.of(u))
         `when`(urlShortenService.shorten("https://ex.com", u, null, "dup"))

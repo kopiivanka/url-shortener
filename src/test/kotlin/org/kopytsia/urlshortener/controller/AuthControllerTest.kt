@@ -24,16 +24,21 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
 
-    @Autowired lateinit var mockMvc: MockMvc
-    @Autowired lateinit var objectMapper: ObjectMapper
-
-    @MockBean lateinit var authService: AuthService
-    @MockBean lateinit var jwtTokenService: JwtTokenService
-    @MockBean lateinit var tokenBlacklistService: TokenBlacklistService
-    @MockBean lateinit var userDetailsService: UserDetailsService
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    @Autowired
+    lateinit var objectMapper: ObjectMapper
+    @MockBean
+    lateinit var authService: AuthService
+    @MockBean
+    lateinit var jwtTokenService: JwtTokenService
+    @MockBean
+    lateinit var tokenBlacklistService: TokenBlacklistService
+    @MockBean
+    lateinit var userDetailsService: UserDetailsService
 
     @Test
-    fun register_returns_created_with_token() {
+    fun `test register returns created with token`() {
         val req = RegisterRequest("new@example.com", "pw")
         `when`(authService.register(req)).thenReturn(AuthResponse("token123"))
 
@@ -44,11 +49,13 @@ class AuthControllerTest {
         )
             .andExpect(status().isCreated)
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.token").value("token123"))
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.token").value("token123")
+            )
     }
 
     @Test
-    fun login_returns_ok_with_token() {
+    fun `test login returns ok with token`() {
         val req = AuthRequest("user@example.com", "pw")
         `when`(authService.login(req)).thenReturn(AuthResponse("jwt-abc"))
 
@@ -59,6 +66,8 @@ class AuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.token").value("jwt-abc"))
+            .andExpect(
+                org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.token").value("jwt-abc")
+            )
     }
 }

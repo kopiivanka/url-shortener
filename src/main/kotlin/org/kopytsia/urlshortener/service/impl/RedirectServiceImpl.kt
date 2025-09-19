@@ -4,7 +4,6 @@ import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.repository.UrlRepository
 import org.kopytsia.urlshortener.service.RedirectService
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -13,7 +12,6 @@ class RedirectServiceImpl(
     private val urlRepository: UrlRepository,
 ) : RedirectService {
 
-    @Transactional
     override fun redirect(shortCode: String): Optional<Url> {
         val now = OffsetDateTime.now()
         return urlRepository.findByShortCode(shortCode)

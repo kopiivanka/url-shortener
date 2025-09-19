@@ -1,18 +1,18 @@
 package org.kopytsia.urlshortener.controller
 
 import org.junit.jupiter.api.Test
+import org.kopytsia.urlshortener.constants.TestConstants.Codes
+import org.kopytsia.urlshortener.constants.TestConstants.Urls
 import org.kopytsia.urlshortener.controller.external.RedirectController
 import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.service.JwtTokenService
-import org.kopytsia.urlshortener.service.TokenBlacklistService
 import org.kopytsia.urlshortener.service.RedirectService
+import org.kopytsia.urlshortener.service.TokenBlacklistService
+import org.mockito.BDDMockito.given
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.mock.mockito.MockBean
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Import
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -22,41 +22,38 @@ import java.util.*
 
 @WebMvcTest(controllers = [RedirectController::class])
 @AutoConfigureMockMvc(addFilters = false)
-@Import(RedirectControllerTest.Config::class)
 class RedirectControllerTest {
 
-    @Autowired lateinit var mockMvc: MockMvc
-    @Autowired lateinit var stubUrlService: StubRedirectService
-
-    @MockBean lateinit var jwtTokenService: JwtTokenService
-    @MockBean lateinit var tokenBlacklistService: TokenBlacklistService
-    @MockBean lateinit var userDetailsService: UserDetailsService
+    @Autowired
+    lateinit var mockMvc: MockMvc
+    @MockBean
+    lateinit var redirectService: RedirectService
+    @MockBean
+    lateinit var jwtTokenService: JwtTokenService
+    @MockBean
+    lateinit var tokenBlacklistService: TokenBlacklistService
+    @MockBean
+    lateinit var userDetailsService: UserDetailsService
 
     @Test
-    fun redirect_found_sets_location_header() {
-        stubUrlService.map["go1"] = Url(shortCode = "go1", originalUrl = "https://golang.org")
+    fun `test found 302 with location`() {
+        val code = Codes.VALID_CUSTOM
+        val target = Urls.VALID
+        given(redirectService.redirect(code)).willReturn(
+            Optional.of(Url(shortCode = code, originalUrl = target))
+        )
 
-        mockMvc.perform(get("/r/{code}", "go1"))
+        mockMvc.perform(get("/r/{code}", code))
             .andExpect(status().isFound)
-            .andExpect(header().string("Location", "https://golang.org"))
+            .andExpect(header().string("Location", target))
     }
 
     @Test
-    fun redirect_missing_returns_404() {
-        stubUrlService.map.clear()
+    fun `test missing 404`() {
+        val code = Codes.GENERATED
+        given(redirectService.redirect(code)).willReturn(Optional.empty())
 
-        mockMvc.perform(get("/r/{code}", "nope"))
+        mockMvc.perform(get("/r/{code}", code))
             .andExpect(status().isNotFound)
-    }
-
-    @TestConfiguration
-    class Config {
-        @Bean
-        fun urlService(): StubRedirectService = StubRedirectService()
-    }
-
-    class StubRedirectService : RedirectService {
-        val map: MutableMap<String, Url> = mutableMapOf()
-        override fun redirect(shortCode: String): Optional<Url> = Optional.ofNullable(map[shortCode])
     }
 }

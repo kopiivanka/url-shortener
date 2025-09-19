@@ -5,21 +5,21 @@ import org.junit.jupiter.api.Test
 import java.util.regex.Pattern
 
 class RandomCodeServiceImplTest {
-    private val service = RandomCodeServiceImpl()
+    private val randomCodeServiceImpl = RandomCodeServiceImpl()
     private val pattern: Pattern = Pattern.compile("^[a-zA-Z0-9]{8}$")
 
     @Test
-    fun `generate returns 8-char alphanumeric`() {
+    fun `test generate returns 8-char alphanumeric`() {
         repeat(100) {
-            val code = service.generate()
+            val code = randomCodeServiceImpl.generate()
             assertThat(code).matches(pattern)
         }
     }
 
     @Test
-    fun `generate values in reasonable sample`() {
+    fun `test generate values in reasonable sample`() {
         val n = 512
-        val codes = (1..n).map { service.generate() }
+        val codes = (1..n).map { randomCodeServiceImpl.generate() }
         assertThat(codes.toSet().size).isEqualTo(n)
     }
 }

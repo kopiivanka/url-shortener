@@ -32,16 +32,16 @@ class UrlShortenServiceImplTest {
     fun `test shorten code provided`() {
         every { urlRepository.existsByShortCode(Codes.VALID_CUSTOM) } returns false
         every { urlRepository.save(any<Url>()) } answers {
-            val u = firstArg<Url>()
-            assertThat(u.originalUrl).isEqualTo(Urls.VALID)
-            assertThat(u.shortCode).isEqualTo(Codes.VALID_CUSTOM)
-            assertThat(u.owner).isEqualTo(USER)
-            assertThat(u.expiresAt).isNull()
-            u
+            val expected = firstArg<Url>()
+            assertThat(expected.originalUrl).isEqualTo(Urls.VALID)
+            assertThat(expected.shortCode).isEqualTo(Codes.VALID_CUSTOM)
+            assertThat(expected.owner).isEqualTo(USER)
+            assertThat(expected.expiresAt).isNull()
+            expected
         }
 
-        val result = urlShortenService.shorten(Urls.VALID, USER, null, Codes.VALID_CUSTOM)
-        assertThat(result).isEqualTo("/r/${Codes.VALID_CUSTOM}")
+        val actual = urlShortenService.shorten(Urls.VALID, USER, null, Codes.VALID_CUSTOM)
+        assertThat(actual).isEqualTo("/r/${Codes.VALID_CUSTOM}")
         verify { urlRepository.existsByShortCode(Codes.VALID_CUSTOM) }
     }
 
@@ -50,16 +50,16 @@ class UrlShortenServiceImplTest {
     fun `test shorten no code provided`() {
         every { randomCodeService.generate() } returns Codes.GENERATED
         every { urlRepository.save(any<Url>()) } answers {
-            val u = firstArg<Url>()
-            assertThat(u.originalUrl).isEqualTo(Urls.VALID)
-            assertThat(u.shortCode).isEqualTo(Codes.GENERATED)
-            assertThat(u.owner).isEqualTo(USER)
-            assertThat(u.expiresAt).isNull()
-            u
+            val expected = firstArg<Url>()
+            assertThat(expected.originalUrl).isEqualTo(Urls.VALID)
+            assertThat(expected.shortCode).isEqualTo(Codes.GENERATED)
+            assertThat(expected.owner).isEqualTo(USER)
+            assertThat(expected.expiresAt).isNull()
+            expected
         }
 
-        val result = urlShortenService.shorten(Urls.VALID, USER, null, null)
-        assertThat(result).isEqualTo("/r/${Codes.GENERATED}")
+        val actual = urlShortenService.shorten(Urls.VALID, USER, null, null)
+        assertThat(actual).isEqualTo("/r/${Codes.GENERATED}")
         verify { randomCodeService.generate() }
     }
 
