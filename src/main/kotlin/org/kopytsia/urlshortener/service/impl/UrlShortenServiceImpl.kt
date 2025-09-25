@@ -7,7 +7,6 @@ import org.kopytsia.urlshortener.service.RandomCodeService
 import org.kopytsia.urlshortener.service.UrlShortenService
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.OffsetDateTime
 
@@ -17,10 +16,9 @@ class UrlShortenServiceImpl(
     private val randomCodeService: RandomCodeService,
 ) : UrlShortenService {
 
-    private val urlPattern  = Regex("^https?://.+")
+    private val urlPattern = Regex("^https?://.+")
     private val codePattern = Regex("^[A-Za-z0-9_-]{3,64}$")
 
-    @Transactional
     override fun shorten(
         url: String,
         user: User,
@@ -45,10 +43,10 @@ class UrlShortenServiceImpl(
 
         urlRepository.save(
             Url(
-                shortCode   = shortCode,
+                shortCode = shortCode,
                 originalUrl = url,
-                owner       = user,
-                expiresAt   = expiresAt
+                owner = user,
+                expiresAt = expiresAt
             )
         )
 

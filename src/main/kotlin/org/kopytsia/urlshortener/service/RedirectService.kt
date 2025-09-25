@@ -4,5 +4,5 @@ import org.kopytsia.urlshortener.entity.Url
 import java.util.*
 
 interface RedirectService {
-    fun redirect(shortCode: String): Optional<Url>
+    fun getRedirectUrl(shortCode: String): Optional<Url>
 }

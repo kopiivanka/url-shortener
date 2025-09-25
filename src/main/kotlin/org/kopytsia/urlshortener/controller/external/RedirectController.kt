@@ -12,8 +12,8 @@ class RedirectController(
 ) {
 
     @GetMapping("/r/{code}")
-    fun redirect(@PathVariable code: String): ResponseEntity<Void> {
-        val urlOpt = redirectService.redirect(code)
+    fun getRedirectUrl(@PathVariable code: String): ResponseEntity<Void> {
+        val urlOpt = redirectService.getRedirectUrl(code)
         return if (urlOpt.isPresent) {
             ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, urlOpt.get().originalUrl)

@@ -1,59 +1,64 @@
 package org.kopytsia.urlshortener.controller
 
+import io.mockk.every
+import io.mockk.impl.annotations.InjectMockKs
+import io.mockk.impl.annotations.MockK
+import io.mockk.junit5.MockKExtension
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.kopytsia.urlshortener.constants.TestConstants.Codes
-import org.kopytsia.urlshortener.constants.TestConstants.Urls
+import org.junit.jupiter.api.extension.ExtendWith
+import org.kopytsia.urlshortener.constants.TestConstants.Codes.GENERATED
+import org.kopytsia.urlshortener.constants.TestConstants.Codes.VALID_CUSTOM
+import org.kopytsia.urlshortener.constants.TestConstants.Urls.VALID
 import org.kopytsia.urlshortener.controller.external.RedirectController
 import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.RedirectService
 import org.kopytsia.urlshortener.service.TokenBlacklistService
-import org.mockito.BDDMockito.given
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.util.*
 
-@WebMvcTest(controllers = [RedirectController::class])
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockKExtension::class)
 class RedirectControllerTest {
+    private lateinit var mockMvc: MockMvc
 
-    @Autowired
-    lateinit var mockMvc: MockMvc
-    @MockBean
-    lateinit var redirectService: RedirectService
-    @MockBean
+    @MockK
+    lateinit var getRedirectUrlService: RedirectService
+    @MockK
     lateinit var jwtTokenService: JwtTokenService
-    @MockBean
+    @MockK
     lateinit var tokenBlacklistService: TokenBlacklistService
-    @MockBean
+    @MockK
     lateinit var userDetailsService: UserDetailsService
+
+    @InjectMockKs
+    lateinit var controller: RedirectController
+
+    @BeforeEach
+    fun setup() {
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build()
+    }
 
     @Test
     fun `test found 302 with location`() {
-        val code = Codes.VALID_CUSTOM
-        val target = Urls.VALID
-        given(redirectService.redirect(code)).willReturn(
-            Optional.of(Url(shortCode = code, originalUrl = target))
-        )
+        every { getRedirectUrlService.getRedirectUrl(VALID_CUSTOM) } returns
+                Optional.of(Url(shortCode = VALID_CUSTOM, originalUrl = VALID))
 
-        mockMvc.perform(get("/r/{code}", code))
+        mockMvc.perform(get("/r/{code}", VALID_CUSTOM))
             .andExpect(status().isFound)
-            .andExpect(header().string("Location", target))
+            .andExpect(header().string("Location", VALID))
     }
 
     @Test
     fun `test missing 404`() {
-        val code = Codes.GENERATED
-        given(redirectService.redirect(code)).willReturn(Optional.empty())
+        every { getRedirectUrlService.getRedirectUrl(GENERATED) } returns Optional.empty()
 
-        mockMvc.perform(get("/r/{code}", code))
+        mockMvc.perform(get("/r/{code}", GENERATED))
             .andExpect(status().isNotFound)
     }
 }

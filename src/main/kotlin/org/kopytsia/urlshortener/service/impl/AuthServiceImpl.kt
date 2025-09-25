@@ -20,11 +20,10 @@ class AuthServiceImpl(
     private val jwtTokenService: JwtTokenService
 ) : AuthService {
 
-    private fun normalizeEmail(raw: String) = raw.trim().lowercase()
 
     @Transactional
     override fun register(request: RegisterRequest): AuthResponse {
-        val email = normalizeEmail(request.email)
+        val email = request.email
 
         if (userRepository.findByEmail(email).isPresent) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already in use")
@@ -38,9 +37,8 @@ class AuthServiceImpl(
         return AuthResponse(token)
     }
 
-    @Transactional
     override fun login(request: AuthRequest): AuthResponse {
-        val email = normalizeEmail(request.email)
+        val email = request.email
 
         val user = userRepository.findByEmail(email).orElseThrow {
             ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials")

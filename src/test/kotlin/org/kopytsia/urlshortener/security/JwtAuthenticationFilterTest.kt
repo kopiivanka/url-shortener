@@ -21,10 +21,7 @@ import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @ExtendWith(MockKExtension::class)
 class JwtAuthenticationFilterTest {
@@ -40,7 +37,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     fun setUp() {
-        filter = JwtAuthenticationFilter(jwt, uds, blacklist)
+        filter = JwtAuthenticationFilter(jwt, uds, blacklist, publicEndpoints = listOf("/api/auth/**", "/r/**"))
         SecurityContextHolder.clearContext()
     }
 
@@ -48,7 +45,7 @@ class JwtAuthenticationFilterTest {
     fun tearDown() = SecurityContextHolder.clearContext()
 
     @Test
-    fun `test bearer_sets_auth`() {
+    fun `bearer token sets authentication`() {
         val token = "abc.def.ghi"
         val email = USER_EMAIL
         val req = MockHttpServletRequest().apply { addHeader(AUTHORIZATION, "Bearer $token") }
@@ -76,22 +73,22 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    fun `test no_header_no_auth`() {
+    fun `no Authorization header - no auth`() {
         val req = MockHttpServletRequest()
         val resp = MockHttpServletResponse()
         val chain = FlagChain()
-
         filter.doFilter(req, resp, chain)
 
         assertNull(SecurityContextHolder.getContext().authentication)
         assertTrue(chain.called)
-        verify { jwt wasNot Called; uds wasNot Called; blacklist wasNot Called }
+
+        verify { jwt wasNot Called }
+        verify { uds wasNot Called }
+        verify { blacklist wasNot Called }
     }
 
     private class FlagChain : FilterChain {
         var called = false
-        override fun doFilter(request: ServletRequest?, response: ServletResponse?) {
-            called = true
-        }
+        override fun doFilter(request: ServletRequest?, response: ServletResponse?) { called = true }
     }
 }

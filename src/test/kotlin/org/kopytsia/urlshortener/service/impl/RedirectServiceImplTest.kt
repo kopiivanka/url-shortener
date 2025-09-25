@@ -29,7 +29,7 @@ class RedirectServiceImplTest {
         )
         every { urlRepository.findByShortCode(Codes.VALID_CUSTOM) } returns Optional.of(expected)
 
-        val actual = redirectServiceImpl.redirect(Codes.VALID_CUSTOM)
+        val actual = redirectServiceImpl.getRedirectUrl(Codes.VALID_CUSTOM)
 
         assertThat(actual).contains(expected)
         verify { urlRepository.findByShortCode(Codes.VALID_CUSTOM) }
@@ -46,7 +46,7 @@ class RedirectServiceImplTest {
         )
         every { urlRepository.findByShortCode(Codes.DUPLICATE) } returns Optional.of(expected)
 
-        val actual = redirectServiceImpl.redirect(Codes.DUPLICATE)
+        val actual = redirectServiceImpl.getRedirectUrl(Codes.DUPLICATE)
 
         assertThat(actual).isEmpty
         verify { urlRepository.findByShortCode(Codes.DUPLICATE) }
@@ -57,7 +57,7 @@ class RedirectServiceImplTest {
     fun `test redirect returns empty`() {
         every { urlRepository.findByShortCode(Codes.GENERATED) } returns Optional.empty()
 
-        val actual = redirectServiceImpl.redirect(Codes.GENERATED)
+        val actual = redirectServiceImpl.getRedirectUrl(Codes.GENERATED)
 
         assertThat(actual).isEmpty
         verify { urlRepository.findByShortCode(Codes.GENERATED) }
@@ -74,7 +74,7 @@ class RedirectServiceImplTest {
         )
         every { urlRepository.findByShortCode(Codes.INVALID_FORMAT) } returns Optional.of(expected)
 
-        val actual = redirectServiceImpl.redirect(Codes.INVALID_FORMAT)
+        val actual = redirectServiceImpl.getRedirectUrl(Codes.INVALID_FORMAT)
 
         assertThat(actual).contains(expected)
         verify { urlRepository.findByShortCode(Codes.INVALID_FORMAT) }

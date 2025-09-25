@@ -12,7 +12,7 @@ class RedirectServiceImpl(
     private val urlRepository: UrlRepository,
 ) : RedirectService {
 
-    override fun redirect(shortCode: String): Optional<Url> {
+    override fun getRedirectUrl(shortCode: String): Optional<Url> {
         val now = OffsetDateTime.now()
         return urlRepository.findByShortCode(shortCode)
             .filter { it.expiresAt == null || it.expiresAt.isAfter(now) }

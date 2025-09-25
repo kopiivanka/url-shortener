@@ -65,31 +65,31 @@ class UrlShortenServiceImplTest {
 
     @Test
     fun `test shorten invalid url provided`() {
-        val ex = catchThrowableOfType(
+        val actual = catchThrowableOfType(
             { urlShortenService.shorten(Urls.INVALID, USER, null, "abc") },
             ResponseStatusException::class.java
         )
-        assertThat(ex.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(actual.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
     @Test
     fun `test shorten code invalid`() {
-        val ex = catchThrowableOfType(
+        val actual = catchThrowableOfType(
             { urlShortenService.shorten(Urls.VALID, USER, null, Codes.INVALID_FORMAT) },
             ResponseStatusException::class.java
         )
-        assertThat(ex.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        assertThat(actual.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
     @Test
     fun `test shorten code taken`() {
         every { urlRepository.existsByShortCode(Codes.DUPLICATE) } returns true
 
-        val ex = catchThrowableOfType(
+        val actual = catchThrowableOfType(
             { urlShortenService.shorten(Urls.VALID, USER, null, Codes.DUPLICATE) },
             ResponseStatusException::class.java
         )
-        assertThat(ex.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        assertThat(actual.statusCode).isEqualTo(HttpStatus.CONFLICT)
         verify { urlRepository.existsByShortCode(Codes.DUPLICATE) }
     }
 }

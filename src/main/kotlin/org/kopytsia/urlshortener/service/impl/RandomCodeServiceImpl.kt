@@ -6,7 +6,6 @@ import java.security.SecureRandom
 
 @Service
 class RandomCodeServiceImpl : RandomCodeService {
-
     private val random = SecureRandom()
     private val alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
