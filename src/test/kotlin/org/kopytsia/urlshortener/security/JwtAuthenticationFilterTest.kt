@@ -37,7 +37,7 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     fun setUp() {
-        filter = JwtAuthenticationFilter(jwt, uds, blacklist, publicEndpoints = listOf("/api/auth/**", "/r/**"))
+        filter = JwtAuthenticationFilter(jwt, uds, blacklist)
         SecurityContextHolder.clearContext()
     }
 

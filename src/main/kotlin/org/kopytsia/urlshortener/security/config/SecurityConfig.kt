@@ -17,7 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
 
-    @Value("#{'\${security.public-endpoints:}'.split(',')}")
+    @Value("#{'\${security.public-endpoints:}'")
     private val publicEndpoints: List<String>
 ) {
 

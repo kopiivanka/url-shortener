@@ -23,33 +23,26 @@ class AuthServiceImpl(
 
     @Transactional
     override fun register(request: RegisterRequest): AuthResponse {
-        val email = request.email
 
-        if (userRepository.findByEmail(email).isPresent) {
+        if (userRepository.findByEmail(request.email).isPresent) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Email already in use")
         }
 
         val hash = passwordEncoder.encode(request.password)
-        val user = User(email = email, passwordHash = hash)
+        val user = User(email = request.email, passwordHash = hash)
         userRepository.save(user)
-
-        val token = jwtTokenService.generateToken(user.email)
-        return AuthResponse(token)
+        return AuthResponse(jwtTokenService.generateToken(user.email))
     }
 
     override fun login(request: AuthRequest): AuthResponse {
-        val email = request.email
 
-        val user = userRepository.findByEmail(email).orElseThrow {
+        val user = userRepository.findByEmail(request.email).orElseThrow {
             ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials")
         }
 
-        val matches = passwordEncoder.matches(request.password, user.passwordHash)
-        if (!matches) {
+         if(!passwordEncoder.matches(request.password, user.passwordHash)) {
             throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials")
         }
-
-        val token = jwtTokenService.generateToken(user.email)
-        return AuthResponse(token)
+        return AuthResponse(jwtTokenService.generateToken(user.email))
     }
 }

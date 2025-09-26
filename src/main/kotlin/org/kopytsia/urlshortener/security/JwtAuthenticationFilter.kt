@@ -5,14 +5,12 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.TokenBlacklistService
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders.AUTHORIZATION
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
-import org.springframework.util.AntPathMatcher
 import org.springframework.web.filter.OncePerRequestFilter
 
 private const val TOKEN_PREFIX = "Bearer "
@@ -22,28 +20,18 @@ class JwtAuthenticationFilter(
     private val jwtTokenService: JwtTokenService,
     private val userDetailsService: UserDetailsService,
     private val tokenBlacklistService: TokenBlacklistService,
-
-    @Value("#{'\${security.public-endpoints:}'.split(',')}")
-    private val publicEndpoints: List<String>,
 ) : OncePerRequestFilter() {
-
-    private val pathMatcher = AntPathMatcher()
 
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
         chain: FilterChain
     ) {
-        val path = request.servletPath
-
-        if (publicEndpoints.any { it.isNotBlank() && pathMatcher.match(it.trim(), path) }) {
-            chain.doFilter(request, response)
-            return
-        }
-
         val header = request.getHeader(AUTHORIZATION)
+
         if (header != null && header.startsWith(TOKEN_PREFIX)) {
             val token = header.removePrefix(TOKEN_PREFIX)
+
             if (jwtTokenService.isTokenValid(token) && !tokenBlacklistService.isBlacklisted(token)) {
                 val username = jwtTokenService.extractUsername(token)
                 val user = userDetailsService.loadUserByUsername(username)
@@ -51,7 +39,7 @@ class JwtAuthenticationFilter(
                 val auth = UsernamePasswordAuthenticationToken(
                     user, null, user.authorities).apply {
                     details = WebAuthenticationDetailsSource().buildDetails(request)
-                    }
+                }
                 SecurityContextHolder.getContext().authentication = auth
             }
         }
