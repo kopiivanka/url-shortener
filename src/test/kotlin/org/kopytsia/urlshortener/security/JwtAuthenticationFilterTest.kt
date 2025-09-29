@@ -45,7 +45,7 @@ class JwtAuthenticationFilterTest {
     fun tearDown() = SecurityContextHolder.clearContext()
 
     @Test
-    fun `bearer token sets authentication`() {
+    fun `test bearer token sets authentication`() {
         val token = "abc.def.ghi"
         val email = USER_EMAIL
         val req = MockHttpServletRequest().apply { addHeader(AUTHORIZATION, "Bearer $token") }
@@ -73,7 +73,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    fun `no Authorization header - no auth`() {
+    fun `test no Authorization header - no auth`() {
         val req = MockHttpServletRequest()
         val resp = MockHttpServletResponse()
         val chain = FlagChain()
