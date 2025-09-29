@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.User
 import org.kopytsia.urlshortener.repository.UserRepository
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import java.util.*
 
@@ -16,7 +16,7 @@ class CustomUserDetailsServiceTest {
     private val service = CustomUserDetailsService(userRepository)
 
     @Test
-    fun `loads existing user with correct authorities`() {
+    fun `test loads existing user with correct authorities`() {
         val u = User(
             id = UUID.randomUUID(),
             email = "admin@example.com",
@@ -33,7 +33,7 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    fun `throws when user not found`() {
+    fun `test throws when user not found`() {
         `when`(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty())
         assertThrows(UsernameNotFoundException::class.java) {
             service.loadUserByUsername("missing@example.com")

@@ -6,7 +6,6 @@ import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.io.Decoders
 import io.jsonwebtoken.security.Keys
 import jakarta.annotation.PostConstruct
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -23,7 +22,6 @@ class JwtTokenServiceImpl(
 ) : JwtTokenService {
 
     private lateinit var secretKey: SecretKey
-    private val logger = LoggerFactory.getLogger(JwtTokenServiceImpl::class.java)
 
     @PostConstruct
     fun init() {
@@ -42,15 +40,14 @@ class JwtTokenServiceImpl(
     }
 
     override fun extractUsername(token: String): String {
-        return try {
+        try {
             val jwt = Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(token)
 
-            jwt.body.subject
+            return jwt.body.subject
         } catch (e: Exception) {
-            logger.warn("JWT parse failed: ${e.message}")
             throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
         }
     }
@@ -68,14 +65,13 @@ class JwtTokenServiceImpl(
     }
 
     override fun getExpiration(token: String): Instant {
-        return try {
+        try {
             val jwt = Jwts.parserBuilder()
                 .setSigningKey(secretKey)
                 .build()
                 .parseClaimsJws(token)
-            jwt.body.expiration.toInstant()
+            return jwt.body.expiration.toInstant()
         } catch (e: Exception) {
-            logger.warn("JWT expiration parse failed: ${e.message}")
             throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
         }
     }

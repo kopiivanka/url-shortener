@@ -18,6 +18,7 @@ class AuthController(
     private val authService: AuthService,
     private val jwtTokenService: JwtTokenService,
     private val tokenBlacklistService: TokenBlacklistService,
+
 ) {
     @PostMapping("/register")
     fun register(@RequestBody request: RegisterRequest): ResponseEntity<AuthResponse> {

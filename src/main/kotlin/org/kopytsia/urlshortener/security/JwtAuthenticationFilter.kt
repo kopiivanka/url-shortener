@@ -21,41 +21,28 @@ class JwtAuthenticationFilter(
     private val userDetailsService: UserDetailsService,
     private val tokenBlacklistService: TokenBlacklistService,
 ) : OncePerRequestFilter() {
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        filterChain: FilterChain,
+        chain: FilterChain
     ) {
-        // Skip auth endpoints entirely
-        val path = request.servletPath
-        if (path.startsWith("/api/auth/")) {
-            filterChain.doFilter(request, response)
-            return
-        }
-        request
-            .getHeader(AUTHORIZATION)
-            ?.removePrefix(TOKEN_PREFIX)
-            ?.let { token ->
-                if (jwtTokenService.isTokenValid(token) && !tokenBlacklistService.isBlacklisted(token)) {
-                    doAuthorization(request, token)
+        val header = request.getHeader(AUTHORIZATION)
+
+        if (header != null && header.startsWith(TOKEN_PREFIX)) {
+            val token = header.removePrefix(TOKEN_PREFIX)
+
+            if (jwtTokenService.isTokenValid(token) && !tokenBlacklistService.isBlacklisted(token)) {
+                val username = jwtTokenService.extractUsername(token)
+                val user = userDetailsService.loadUserByUsername(username)
+
+                val auth = UsernamePasswordAuthenticationToken(
+                    user, null, user.authorities).apply {
+                    details = WebAuthenticationDetailsSource().buildDetails(request)
                 }
+                SecurityContextHolder.getContext().authentication = auth
             }
-
-        filterChain.doFilter(request, response)
-    }
-
-    private fun doAuthorization(
-        request: HttpServletRequest,
-        token: String
-    ){
-        val username = jwtTokenService.extractUsername(token)
-        val userDetails = userDetailsService.loadUserByUsername(username)
-        val authToken = UsernamePasswordAuthenticationToken(
-            userDetails, null, userDetails.authorities)
-            .apply {
-                details= WebAuthenticationDetailsSource()
-                    .buildDetails(request)
-            }
-        SecurityContextHolder.getContext().authentication = authToken
+        }
+        chain.doFilter(request, response)
     }
 }
