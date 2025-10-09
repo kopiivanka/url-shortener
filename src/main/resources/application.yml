@@ -22,9 +22,7 @@ spring:
       port: ${REDIS_PORT:6379}
 
 security:
-  public-endpoints:
-    - /api/auth/**
-    - /r/**
+  public-endpoints: "/api/auth/**,/r/**"
 
 jwt:
   secret: ${JWT_SECRET}
