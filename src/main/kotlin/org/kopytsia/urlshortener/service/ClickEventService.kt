@@ -1,13 +1,13 @@
 package org.kopytsia.urlshortener.service
 
-import jakarta.servlet.http.HttpServletRequest
-import org.springframework.util.MultiValueMap
-
 interface ClickEventService {
-    fun trackRedirectUrl(
+    fun logAsync(
         code: String,
-        originalUrl: String,
-        incoming: MultiValueMap<String, String>,
-        request: HttpServletRequest
-    ): String
+        ip: String?,
+        userAgent: String?,
+        acceptLanguage: String?,
+        method: String?,
+        path: String?,
+        headers: Map<String, String>
+    )
 }
