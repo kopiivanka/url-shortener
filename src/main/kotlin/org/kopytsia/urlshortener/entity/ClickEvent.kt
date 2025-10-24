@@ -1,29 +1,19 @@
 package org.kopytsia.urlshortener.entity
 
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.Id
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import java.time.OffsetDateTime
+import java.util.*
 
 @Entity
-@Table(name = "click_event")
 data class ClickEvent(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
-
-    @Column(nullable = false)
-    val code: String,
-
-    val ip: String? = null,
-    val userAgent: String? = null,
-    val acceptLanguage: String? = null,
-    val method: String? = null,
-    val path: String? = null,
+    @Id @GeneratedValue val id: UUID? = null,
+    val codeUuid: UUID,
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb", nullable = false)
-    val headers: Map<String, String> = emptyMap(),
-
-    @Column(nullable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now()
+    @Column(columnDefinition = "jsonb")
+    val metadata: Map<String, String>
 )
