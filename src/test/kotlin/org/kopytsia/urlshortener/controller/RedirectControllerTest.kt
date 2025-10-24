@@ -11,11 +11,7 @@ import org.kopytsia.urlshortener.constants.TestConstants.Codes.GENERATED
 import org.kopytsia.urlshortener.constants.TestConstants.Codes.VALID_CUSTOM
 import org.kopytsia.urlshortener.constants.TestConstants.Urls.VALID
 import org.kopytsia.urlshortener.controller.external.RedirectController
-import org.kopytsia.urlshortener.entity.Url
-import org.kopytsia.urlshortener.service.JwtTokenService
 import org.kopytsia.urlshortener.service.RedirectService
-import org.kopytsia.urlshortener.service.TokenBlacklistService
-import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
@@ -28,26 +24,18 @@ class RedirectControllerTest {
     private lateinit var mockMvc: MockMvc
 
     @MockK
-    lateinit var getRedirectUrlService: RedirectService
-    @MockK
-    lateinit var jwtTokenService: JwtTokenService
-    @MockK
-    lateinit var tokenBlacklistService: TokenBlacklistService
-    @MockK
-    lateinit var userDetailsService: UserDetailsService
-
+    lateinit var redirectService: RedirectService
     @InjectMockKs
-    lateinit var controller: RedirectController
+    lateinit var redirectController: RedirectController
 
     @BeforeEach
     fun setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build()
+        mockMvc = MockMvcBuilders.standaloneSetup(redirectController).build()
     }
 
     @Test
     fun `test found 302 with location`() {
-        every { getRedirectUrlService.getRedirectUrl(VALID_CUSTOM) } returns
-                Optional.of(Url(shortCode = VALID_CUSTOM, originalUrl = VALID))
+        every { redirectService.getRedirectUrl(VALID_CUSTOM) } returns Optional.of(VALID)
 
         mockMvc.perform(get("/r/{code}", VALID_CUSTOM))
             .andExpect(status().isFound)
@@ -56,7 +44,7 @@ class RedirectControllerTest {
 
     @Test
     fun `test missing 404`() {
-        every { getRedirectUrlService.getRedirectUrl(GENERATED) } returns Optional.empty()
+        every { redirectService.getRedirectUrl(GENERATED) } returns Optional.empty()
 
         mockMvc.perform(get("/r/{code}", GENERATED))
             .andExpect(status().isNotFound)

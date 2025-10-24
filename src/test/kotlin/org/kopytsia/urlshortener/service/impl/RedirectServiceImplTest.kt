@@ -7,7 +7,7 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.kopytsia.urlshortener.constants.TestConstants.Codes
-import org.kopytsia.urlshortener.constants.TestConstants.Urls
+import org.kopytsia.urlshortener.constants.TestConstants.Urls.VALID
 import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
 import org.kopytsia.urlshortener.entity.Url
 import org.kopytsia.urlshortener.repository.UrlRepository
@@ -15,7 +15,6 @@ import java.time.OffsetDateTime
 import java.util.*
 
 class RedirectServiceImplTest {
-
     private val urlRepository: UrlRepository = mockk()
     private val redirectServiceImpl = RedirectServiceImpl(urlRepository)
 
@@ -23,7 +22,7 @@ class RedirectServiceImplTest {
     fun `test redirect returns url not expired`() {
         val expected = Url(
             shortCode = Codes.VALID_CUSTOM,
-            originalUrl = Urls.VALID,
+            originalUrl = VALID,
             owner = USER,
             expiresAt = OffsetDateTime.now().plusDays(1)
         )
@@ -31,7 +30,7 @@ class RedirectServiceImplTest {
 
         val actual = redirectServiceImpl.getRedirectUrl(Codes.VALID_CUSTOM)
 
-        assertThat(actual).contains(expected)
+        assertThat(actual).contains(VALID)
         verify { urlRepository.findByShortCode(Codes.VALID_CUSTOM) }
         confirmVerified(urlRepository)
     }
@@ -40,7 +39,7 @@ class RedirectServiceImplTest {
     fun `test redirect returns url expired`() {
         val expected = Url(
             shortCode = Codes.DUPLICATE,
-            originalUrl = Urls.VALID,
+            originalUrl = VALID,
             owner = USER,
             expiresAt = OffsetDateTime.now().minusDays(1)
         )
@@ -68,7 +67,7 @@ class RedirectServiceImplTest {
     fun `test redirect expiresAt is null`() {
         val expected = Url(
             shortCode = Codes.INVALID_FORMAT,
-            originalUrl = Urls.VALID,
+            originalUrl = VALID,
             owner = USER,
             expiresAt = null
         )
@@ -76,7 +75,7 @@ class RedirectServiceImplTest {
 
         val actual = redirectServiceImpl.getRedirectUrl(Codes.INVALID_FORMAT)
 
-        assertThat(actual).contains(expected)
+        assertThat(actual).contains(VALID)
         verify { urlRepository.findByShortCode(Codes.INVALID_FORMAT) }
         confirmVerified(urlRepository)
     }

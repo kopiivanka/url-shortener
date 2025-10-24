@@ -1,13 +1,10 @@
 package org.kopytsia.urlshortener.service
 
+import jakarta.servlet.http.HttpServletRequest
+
 interface ClickEventService {
     fun logAsync(
         code: String,
-        ip: String?,
-        userAgent: String?,
-        acceptLanguage: String?,
-        method: String?,
-        path: String?,
-        headers: Map<String, String>
+        request: HttpServletRequest
     )
 }
