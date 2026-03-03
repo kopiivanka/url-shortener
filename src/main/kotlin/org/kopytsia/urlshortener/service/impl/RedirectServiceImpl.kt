@@ -1,19 +1,19 @@
 package org.kopytsia.urlshortener.service.impl
 
-import org.kopytsia.urlshortener.repository.UrlRepository
+import org.kopytsia.urlshortener.dao.UrlDao
 import org.kopytsia.urlshortener.service.RedirectService
 import org.springframework.stereotype.Service
-import java.time.OffsetDateTime
 import java.util.*
 
 @Service
 class RedirectServiceImpl(
-    private val urlRepository: UrlRepository,
+    private val urlDao: UrlDao,
 ) : RedirectService {
 
     override fun getRedirectUrl(shortCode: String): Optional<String> {
-        return urlRepository.findByShortCode(shortCode)
-            .filter { it.expiresAt == null || it.expiresAt.isAfter(OffsetDateTime.now()) }
-            .map { it.originalUrl }
+
+        val url = urlDao.findByShortCode(shortCode) ?: return Optional.empty()
+
+        return Optional.of(url.originalUrl)
     }
 }

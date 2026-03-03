@@ -8,42 +8,42 @@ import org.kopytsia.urlshortener.constants.TestConstants.Ids.USER_ID
 import org.kopytsia.urlshortener.constants.TestConstants.Users.PASSWORD_HASH
 import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
 import org.kopytsia.urlshortener.constants.TestConstants.Users.USER_EMAIL
+import org.kopytsia.urlshortener.dao.UserDao
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.User
-import org.kopytsia.urlshortener.repository.UserRepository
 import java.time.OffsetDateTime
 import java.util.*
 
 class UserServiceImplTest {
 
-    private val userRepository: UserRepository = mockk()
-    private val userServiceImpl = UserServiceImpl(userRepository)
+    private val userDao: UserDao = mockk()
+    private val userServiceImpl = UserServiceImpl(userDao)
 
     @Test
     fun `test findByUserId returns entity`() {
-        every { userRepository.findById(USER_ID) } returns Optional.of(USER)
+        every { userDao.findById(USER_ID) } returns USER
 
         val got = userServiceImpl.findByUserId(USER_ID)
 
         assertEquals(USER, got)
-        verify { userRepository.findById(USER_ID) }
-        confirmVerified(userRepository)
+        verify { userDao.findById(USER_ID) }
+        confirmVerified(userDao)
     }
 
     @Test
     fun `test findByUserId throws when missing`() {
         val id = UUID.randomUUID()
-        every { userRepository.findById(id) } returns Optional.empty()
+        every { userDao.findById(id) } returns null
 
         assertThrows(EntityNotFoundException::class.java) { userServiceImpl.findByUserId(id) }
-        verify { userRepository.findById(id) }
-        confirmVerified(userRepository)
+        verify { userDao.findById(id) }
+        confirmVerified(userDao)
     }
 
     @Test
     fun `test createUser saves with fields set`() {
         val savedSlot = slot<User>()
-        every { userRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
+        every { userDao.save(capture(savedSlot)) } answers { savedSlot.captured }
 
         val res = userServiceImpl.createUser(USER_EMAIL, PASSWORD_HASH, Role.ADMIN)
 
@@ -55,8 +55,8 @@ class UserServiceImplTest {
         assertNotNull(saved.createdAt)
         assertEquals(saved, res)
 
-        verify { userRepository.save(any<User>()) }
-        confirmVerified(userRepository)
+        verify { userDao.save(any<User>()) }
+        confirmVerified(userDao)
     }
 
     @Test
@@ -71,10 +71,10 @@ class UserServiceImplTest {
             createdAt = created
         )
 
-        every { userRepository.findById(id) } returns Optional.of(existing)
+        every { userDao.findById(id) } returns existing
 
         val savedSlot = slot<User>()
-        every { userRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
+        every { userDao.save(capture(savedSlot)) } answers { savedSlot.captured }
 
         val res = userServiceImpl.updateUser(id, USER_EMAIL, PASSWORD_HASH, Role.ADMIN)
 
@@ -87,49 +87,49 @@ class UserServiceImplTest {
         assertEquals(saved, res)
 
         verify {
-            userRepository.findById(id)
-            userRepository.save(any<User>())
+            userDao.findById(id)
+            userDao.save(any<User>())
         }
-        confirmVerified(userRepository)
+        confirmVerified(userDao)
     }
 
     @Test
     fun `test updateUser throws when missing`() {
         val id = UUID.randomUUID()
-        every { userRepository.findById(id) } returns Optional.empty()
+        every { userDao.findById(id) } returns null
 
         assertThrows(EntityNotFoundException::class.java) {
             userServiceImpl.updateUser(id, USER_EMAIL, PASSWORD_HASH, Role.USER)
         }
 
-        verify { userRepository.findById(id) }
-        confirmVerified(userRepository)
+        verify { userDao.findById(id) }
+        confirmVerified(userDao)
     }
 
     @Test
     fun `test deleteUser removes when exists`() {
         val id = UUID.randomUUID()
-        every { userRepository.existsById(id) } returns true
-        justRun { userRepository.deleteById(id) }
+        every { userDao.existsById(id) } returns true
+        every { userDao.deleteById(id) } just Runs
 
         userServiceImpl.deleteUser(id)
 
         verify {
-            userRepository.existsById(id)
-            userRepository.deleteById(id)
+            userDao.existsById(id)
+            userDao.deleteById(id)
         }
-        confirmVerified(userRepository)
+        confirmVerified(userDao)
     }
 
     @Test
     fun `test deleteUser throws when missing`() {
         val id = UUID.randomUUID()
-        every { userRepository.existsById(id) } returns false
+        every { userDao.existsById(id) } returns false
 
         assertThrows(EntityNotFoundException::class.java) { userServiceImpl.deleteUser(id) }
 
-        verify { userRepository.existsById(id) }
-        verify(exactly = 0) { userRepository.deleteById(any()) }
-        confirmVerified(userRepository)
+        verify { userDao.existsById(id) }
+        verify(exactly = 0) { userDao.deleteById(any()) }
+        confirmVerified(userDao)
     }
 }

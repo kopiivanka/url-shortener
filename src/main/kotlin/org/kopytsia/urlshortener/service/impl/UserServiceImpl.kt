@@ -1,59 +1,58 @@
 package org.kopytsia.urlshortener.service.impl
 
 import jakarta.persistence.EntityNotFoundException
+import org.kopytsia.urlshortener.dao.UserDao
 import org.kopytsia.urlshortener.entity.Role
 import org.kopytsia.urlshortener.entity.User
-import org.kopytsia.urlshortener.repository.UserRepository
 import org.kopytsia.urlshortener.service.UserService
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.OffsetDateTime
 import java.util.*
 
 @Service
+@Transactional(readOnly = true)
 class UserServiceImpl(
-    private val userRepository: UserRepository
+    private val userDao: UserDao
 ) : UserService {
 
     @Cacheable(cacheNames = ["userById"], key = "#id")
-    override fun findByUserId(id: UUID): User {
-        return userRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("User with id=$id not found") }
-    }
+    override fun findByUserId(id: UUID): User =
+        userDao.findById(id) ?: throw EntityNotFoundException("User with id=$id not found")
 
+    @Transactional
     @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
     override fun createUser(email: String, passwordHash: String, role: Role): User {
-        val newUser = User(
+        val user = User(
             id = UUID.randomUUID(),
             email = email,
             passwordHash = passwordHash,
             role = role,
             createdAt = OffsetDateTime.now()
         )
-        return userRepository.save(newUser)
+        return userDao.save(user)
     }
 
+    @Transactional
     @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
     override fun updateUser(id: UUID, email: String, passwordHash: String, role: Role): User {
-        val existingUser = userRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("User with id=$id not found") }
-
-        val updatedUser = User(
-            id = existingUser.id,
+        val existing = userDao.findById(id) ?: throw EntityNotFoundException("User with id=$id not found")
+        val updated = User(
+            id = existing.id,
             email = email,
             passwordHash = passwordHash,
             role = role,
-            createdAt = existingUser.createdAt
+            createdAt = existing.createdAt
         )
-        return userRepository.save(updatedUser)
+        return userDao.save(updated)
     }
 
+    @Transactional
     @CacheEvict(cacheNames = ["userById", "userByEmail"], allEntries = true)
     override fun deleteUser(id: UUID) {
-        if (!userRepository.existsById(id)) {
-            throw EntityNotFoundException("User with id=$id not found")
-        }
-        userRepository.deleteById(id)
+        if (!userDao.existsById(id)) throw EntityNotFoundException("User with id=$id not found")
+        userDao.deleteById(id)
     }
 }

@@ -1,8 +1,8 @@
 package org.kopytsia.urlshortener.service.impl
 
-import org.kopytsia.urlshortener.entity.Url
+import org.kopytsia.urlshortener.dao.UrlDao
+import org.kopytsia.urlshortener.entity.ShortUrl
 import org.kopytsia.urlshortener.entity.User
-import org.kopytsia.urlshortener.repository.UrlRepository
 import org.kopytsia.urlshortener.service.RandomCodeService
 import org.kopytsia.urlshortener.service.UrlShortenService
 import org.springframework.http.HttpStatus
@@ -12,7 +12,7 @@ import java.time.OffsetDateTime
 
 @Service
 class UrlShortenServiceImpl(
-    private val urlRepository: UrlRepository,
+    private val urlDao: UrlDao,
     private val randomCodeService: RandomCodeService,
 ) : UrlShortenService {
 
@@ -30,11 +30,11 @@ class UrlShortenServiceImpl(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URL format")
         }
 
-        urlRepository.save(
-            Url(
+        urlDao.save(
+            ShortUrl(
                 shortCode = resolveShortCode(code),
                 originalUrl = url,
-                owner = user,
+                ownerId = user.id!!,
                 expiresAt = expiresAt
             )
         )
@@ -50,7 +50,7 @@ class UrlShortenServiceImpl(
         if (!codePattern.matches(code)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid short code format")
         }
-        if (urlRepository.existsByShortCode(code)) {
+        if (urlDao.existsByShortCode(code)) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Short code already taken")
         }
         return code

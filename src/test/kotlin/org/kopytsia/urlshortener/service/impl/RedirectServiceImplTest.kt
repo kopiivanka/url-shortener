@@ -9,14 +9,14 @@ import org.junit.jupiter.api.Test
 import org.kopytsia.urlshortener.constants.TestConstants.Codes
 import org.kopytsia.urlshortener.constants.TestConstants.Urls.VALID
 import org.kopytsia.urlshortener.constants.TestConstants.Users.USER
+import org.kopytsia.urlshortener.dao.UrlDao
 import org.kopytsia.urlshortener.entity.Url
-import org.kopytsia.urlshortener.repository.UrlRepository
 import java.time.OffsetDateTime
 import java.util.*
 
 class RedirectServiceImplTest {
-    private val urlRepository: UrlRepository = mockk()
-    private val redirectServiceImpl = RedirectServiceImpl(urlRepository)
+    private val urlDao: UrlDao = mockk()
+    private val redirectServiceImpl = RedirectServiceImpl(urlDao)
 
     @Test
     fun `test redirect returns url not expired`() {
